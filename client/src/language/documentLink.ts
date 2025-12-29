@@ -6,7 +6,7 @@ export class DocumentLinkProvider implements DocumentLinkProvider {
 	async provideDocumentLinks(document: TextDocument, token: CancellationToken) {
 		const results: DocumentLink[] = [];
 		const text: string = document.getText();
-		const linkPattern: RegExp = /(?<=['"]).*\.tpl(?=['"])/g;
+		const linkPattern: RegExp = /(?<=['"])[^\s'"]+\.tpl(?=['"])/g;
 
 		for (let match: RegExpExecArray; match = linkPattern.exec(text); match) {
 
