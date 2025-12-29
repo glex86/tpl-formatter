@@ -1,84 +1,34 @@
-## 2.1.1 (June 22, 2023)
-* Readme Fixes
+# Change Log
 
-## 2.1.0 (January 16, 2023)
-* Handle relative paths and shorthand includes (PR #440)
-* Updated dependencies & HTML language server
-* Fix debugging
+All notable changes to the "Smarty Formatter" extension will be documented in this file.
 
-## 2.0.0 (June 19, 2022)
-* Now available for [vscode.dev](https://vscode.dev/) and other web platforms.
-* Updated dependencies & HTML language server
-* Bug Fixes
+## [2.1.2] - 2025-12-29
 
-## 1.10.0 (March 13, 2022)
-* Respected editorconfig and file indentation (Issues #193, #338)
-* Updated dependencies & HTML language server
-* Bug Fixes
+### Added
 
-## 1.9.0 (July 31, 2021)
-* Formatting issues #267, #242
-* Code folding issue #243
-* Updated dependencies & language server
-* Minor Bug Fixes
+- Enhanced formatting algorithm with improved tag wrapping logic
+- Support for `{component}` tags with dedicated snippet
+- Support for `{include_scoped}` tags with dedicated snippet
+- Support for `{sectionelse}` middle tag in formatting
+- Improved handling of multiline tag formatting
+- Enhanced logic tag detection (if, elseif, while)
+- Better indentation preservation for complex nested structures
 
-## 1.8.0 (December 13, 2020)
-* Respect `Wrap Attributes` setting. Read [docs](https://github.com/aswinkumar863/smarty-vscode-support#formatting-settings).
-* Code navigation for [`include`](https://www.smarty.net/docsv2/en/language.function.include.tpl) function
-* Code folding and indentation fixes
-* Updated dependencies & language server
-* Bug Fixes
+### Changed
 
-## 1.7.0 (August 2, 2020)
-* Complete cleanup and refactoring
-* Updated dependencies & language server
-* More HTML formatting options
-* [Variable modifiers](https://www.smarty.net/docs/en/language.modifiers.tpl) snippets
-* Bug Fixes
+- Completely rewritten beautify.ts with advanced preprocessing and postprocessing
+- Improved syntax highlighting with better structure and readability
+- Enhanced language configuration with proper formatting
+- Updated logo with higher resolution (69KB)
+- Code refactoring for better maintainability
 
-## 1.6.0 (May 31, 2020)
-* Rewrite language grammer
-* Comment toggling for `{{...}}` delimiters
-* Improved hover documentation
-* Toggle highlight decoration command
-* Bug Fixes
+### Fixed
 
-## 1.5.0 (May 14, 2020)
-* Updated HTML Language Server
-* Bug Fixes
+- Fixed indentation issues in nested Smarty tags
+- Improved handling of HTML tags within Smarty templates
+- Better preservation of whitespace in formatted code
+- Fixed wrapping behavior for long tags
 
-## 1.4.0 (May 10, 2020)
-* Added `{{...}}` delimiter support
+## Previous Versions
 
-## 1.3.0 (May 3, 2020)
-* indentationRules added
-* indentation on formatting
-
-## 1.2.0 (April 13, 2020)
-* bundled with webpack to reduce the size
-
-## 1.1.0 (April 11, 2020)
-* Language Service for better HTML, CSS and JS support
-* Autocomplete for HTML, CSS and JS 
-* Hover Documentation for HTML, CSS and JS 
-
-## 1.0.3 (April 4, 2020)
-* Performance improvements for highlight decoration
-
-## 1.0.2 (March 31, 2020)
-* html comments inside literal block
-* highlighting decoration disabled inside literal block
-
-## 1.0.1 (March 29, 2020)
-* formatter dependency fixes and improvements
-
-## 1.0.0 (March 28, 2020)
-
-* Syntax highlighting
-* Snippet completion
-* Bracket autoclosing
-* Bracket autosurrounding
-* Hover documentation
-* Comment toggling
-* Code folding
-* Code formatting
+See git history for earlier changes.

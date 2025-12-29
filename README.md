@@ -1,158 +1,148 @@
-# Smarty Template for Visual Studio Code
+# Smarty Formatter
 
-[![Latest Release](https://img.shields.io/visual-studio-marketplace/v/aswinkumar863.smarty-template-support?logo=visual-studio-code&label=Smarty%20Template%20Support)](https://marketplace.visualstudio.com/items?itemName=aswinkumar863.smarty-template-support)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/aswinkumar863.smarty-template-support)](https://marketplace.visualstudio.com/items?itemName=aswinkumar863.smarty-template-support)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/aswinkumar863.smarty-template-support)](https://marketplace.visualstudio.com/items?itemName=aswinkumar863.smarty-template-support&ssr=false#review-details)
-[![GitHub Stars](https://img.shields.io/github/stars/aswinkumar863/smarty-vscode-support?logo=github)](https://github.com/aswinkumar863/smarty-vscode-support)
-[![GitHub closed issues](https://img.shields.io/github/issues-closed/aswinkumar863/smarty-vscode-support)](https://github.com/aswinkumar863/smarty-vscode-support/issues)
+![Smarty Logo](images/logo.png)
 
-This extension provides [Smarty Template](https://www.smarty.net/) support for Visual Studio Code. 
-Supports `{...}` and `{{...}}` delimiters. Available for both VSCode [desktop](https://code.visualstudio.com/Download) and [web](https://vscode.dev/).
+Smarty Formatter for Visual Studio Code with formatting, folding, snippets, syntax highlighting and more.
 
 ## Features
 
-* Syntax highlighting
-* Snippet completion
-* Code formatting
-* Code folding
-* Code navigation
-* Comment toggling
-* Bracket autoclosing
-* Bracket autosurrounding
-* Hover documentation
-* Auto Indentation
+### 🎨 Syntax Highlighting
 
-## What it looks like
+- Full syntax highlighting for Smarty template files (.tpl)
+- Support for embedded HTML, CSS, and JavaScript
+- Proper color coding for Smarty tags, variables, and functions
 
-![Settings](images/preview.gif)
+### ✨ Code Formatting
+
+- Advanced formatting engine based on js-beautify
+- Smart indentation for nested Smarty tags
+- Proper handling of:
+  - Block tags (if, foreach, for, while, function, etc.)
+  - Middle tags (else, elseif, foreachelse, sectionelse)
+  - Component and include tags
+  - HTML and embedded scripts
+
+### 📝 Snippets
+
+Built-in snippets for common Smarty constructs:
+
+- `block` - Block tag
+- `capture` - Capture tag
+- `component` - Component include tag (**New in 2.1.2**)
+- `for` - For loop
+- `foreach` - Foreach loop
+- `function` - Function definition
+- `if` / `elseif` / `else` - Conditional statements
+- `include` - Include template
+- `include_scoped` - Scoped include template (**New in 2.1.2**)
+- `literal` - Literal block
+- `section` - Section loop
+- And many more...
+
+### 🔧 Additional Features
+
+- Code folding for Smarty blocks
+- Auto-closing pairs for braces and brackets
+- Comment toggling with `{* *}`
+- Highlight decoration toggle (optional)
+
+## Installation
+
+1. Open Visual Studio Code
+2. Press `Ctrl+P` / `Cmd+P` to open Quick Open
+3. Type `ext install OktayAydoan.smarty-formatter`
+4. Press Enter
+
+## Usage
+
+### Formatting
+
+- **Format Document**: `Shift+Alt+F` (Windows/Linux) or `Shift+Option+F` (macOS)
+- **Format Selection**: Select code and use the same shortcut
+
+The formatter respects your VS Code settings:
+
+- `editor.tabSize` - Number of spaces for indentation
+- `editor.insertSpaces` - Use spaces or tabs
+
+### Highlight Decoration
+
+Toggle highlight decoration for Smarty tags:
+
+- Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+- Type "Smarty: Toggle Highlight Decoration"
+
+## Configuration
+
+```json
+{
+	// Enable/disable highlight decoration
+	"smarty.highlight": false,
+
+	// Customize highlight colors
+	"smarty.highlightColor": {
+		"dark": "#FFFFFF25",
+		"light": "#FFFA0040"
+	}
+}
+```
+
+## Supported Smarty Tags
+
+### Block Tags
+
+- `{block}`, `{capture}`, `{for}`, `{foreach}`, `{function}`
+- `{if}`, `{literal}`, `{section}`, `{setfilter}`, `{strip}`, `{while}`
+
+### Inline Tags
+
+- `{assign}`, `{component}`, `{include}`, `{include_scoped}`
+- `{append}`, `{break}`, `{call}`, `{continue}`
+- `{debug}`, `{extends}`, `{insert}`, `{ldelim}`, `{rdelim}`
+
+### Built-in Functions
+
+- Variables: `{$variable}`, `{$array.key}`, `{$object->property}`
+- Modifiers: `{$var|modifier:param}`
+- Functions: `{counter}`, `{cycle}`, `{eval}`, `{fetch}`, `{html_*}`, `{mailto}`, etc.
+
+## What's New in 2.1.2
+
+- ✅ Enhanced formatting algorithm with better tag wrapping
+- ✅ New snippets: `{component}` and `{include_scoped}`
+- ✅ Support for `{sectionelse}` middle tag
+- ✅ Improved multiline tag handling
+- ✅ Better indentation for nested structures
+- ✅ Updated logo with higher resolution
+- ✅ Code refactoring for improved performance
 
 ## Requirements
 
-* VS Code `1.43.0` or higher
+- Visual Studio Code v1.43.0 or higher
 
-## Extension Settings
+## Known Issues
 
+- Some complex nested structures may require manual adjustment
+- Performance may vary with very large template files
 
-![Settings](images/settings-preview.png)
+## Contributing
 
-* **`smarty.highlight`**: Enable/disable highlight decoration of smarty tags documents.
-* **`smarty.highlightColor`**: Highlight decoration color based on dark/light theme kind.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-**For example:**
+## Repository
 
-```jsonc
-"smarty.highhlight": true,
-"smarty.highlightColor": {
-  "dark": "#FFFFFF25",
-  "light": "#FFFA0040"
-}
-```
+https://github.com/oktayaydogan/smarty-formatter
 
-## Formatting Settings
+## License
 
-Here is the list of native vscode settings used in smarty document formatting.
+MIT License - see LICENSE file for details
 
-```jsonc
-{
-  // The number of spaces a tab is equal to.
-  "editor.tabSize": 4,
+## Author
 
-  // Indent using spaces.
-  "editor.insertSpaces": true,
+Oktay Aydoğan
 
-  // End with a newline.
-  "html.format.endWithNewline": false,
+- Email: aydoganooktay@gmail.com
 
-  // Indent `<head>` and `<body>` sections.
-  "html.format.indentInnerHtml": false,
+---
 
-  // Maximum number of line breaks to be preserved in one chunk. Use `null` for unlimited.
-  "html.format.maxPreserveNewLines": null,
-
-  // Controls whether existing line breaks before elements should be preserved.
-  "html.format.preserveNewLines": true,
-
-  // Wrap attributes.
-  //  - auto: Wrap attributes only when line length is exceeded.
-  //  - force: Wrap each attribute except first.
-  //  - force-aligned: Wrap each attribute except first and keep aligned.
-  //  - force-expand-multiline: Wrap each attribute.
-  //  - aligned-multiple: Wrap when line length is exceeded, align attributes vertically.
-  //  - preserve: Preserve wrapping of attributes.
-  //  - preserve-aligned: Preserve wrapping of attributes but align.
-  "html.format.wrapAttributes": "auto",
-
-  // Maximum amount of characters per line (0 = disable).
-  "html.format.wrapLineLength": 120
-}
-```
-
-## User Settings
-
-**For Emmet Abbreviations:**
-
-Paste the following into your `settings.json`
-
-```jsonc
-"emmet.includeLanguages": {
-  "smarty": "html"
-}
-```
-
-**For Netbeans Style Theme:**
-
-![Netbeans Theme](images/netbeans-theme-preview.png)
-
-Paste the following into your `settings.json`
-
-<details>
-  <summary>Click to expand settings!</summary>
-  
-  ```jsonc
-  "editor.tokenColorCustomizations": {
-    "textMateRules": [
-      {
-        "scope": [
-          "punctuation.section.embedded.begin.smarty",
-          "punctuation.section.embedded.end.smarty"
-        ],
-        "settings": {
-          "foreground": "#FFA500",
-          "fontStyle": "bold"
-        }
-      },
-      {
-        "scope": [
-          "keyword.control.smarty",
-          "support.function.built-in.smarty"
-        ],
-        "settings": {
-          "foreground": "#16A016",
-          "fontStyle": "bold"
-        }
-      },
-      {
-        "scope": ["variable.parameter.smarty"],
-        "settings": {
-          "foreground": "#AE23A3",
-          "fontStyle": "bold"
-        }
-      },
-      {
-        "scope": ["source.smarty"],
-        "settings": {
-          "foreground": "#D17C32"
-        }
-      }
-    ]
-  }
-  ```
-</details>
-
-## Issues
-
-Submit the [issues](https://github.com/aswinkumar863/smarty-vscode-support/issues) if you find any bug or have any suggestion.
-
-## Release Notes
-
-Detailed release notes are available [here](CHANGELOG.md).
+**Enjoy coding with Smarty! 🚀**
