@@ -1,29 +1,99 @@
 {
 	"comments": {
-		"blockComment": ["{*", "*}"]
+		"blockComment": [
+			"{*",
+			"*}"
+		]
 	},
 	"brackets": [
-		["{", "}"],
-		["[", "]"],
-		["(", ")"]
+		[
+			"{",
+			"}"
+		],
+		[
+			"[",
+			"]"
+		],
+		[
+			"(",
+			")"
+		]
 	],
 	"autoClosingPairs": [
-		{ "open": "{", "close": "}" },
-		{ "open": "[", "close": "]" },
-		{ "open": "(", "close": ")" },
-		{ "open": "'", "close": "'", "notIn": ["string", "comment"] },
-		{ "open": "\"", "close": "\"", "notIn": ["string"] },
-		{ "open": "`", "close": "`", "notIn": ["string", "comment"] }
+		{
+			"open": "{",
+			"close": "}"
+		},
+		{
+			"open": "[",
+			"close": "]"
+		},
+		{
+			"open": "(",
+			"close": ")"
+		},
+		{
+			"open": "'",
+			"close": "'",
+			"notIn": [
+				"string",
+				"comment"
+			]
+		},
+		{
+			"open": "\"",
+			"close": "\"",
+			"notIn": [
+				"string"
+			]
+		},
+		{
+			"open": "`",
+			"close": "`",
+			"notIn": [
+				"string",
+				"comment"
+			]
+		}
 	],
 	"surroundingPairs": [
-		["{", "}"],
-		["[", "]"],
-		["(", ")"],
-		["'", "'"],
-		["\"", "\""]
+		[
+			"{",
+			"}"
+		],
+		[
+			"[",
+			"]"
+		],
+		[
+			"(",
+			")"
+		],
+		[
+			"'",
+			"'"
+		],
+		[
+			"\"",
+			"\""
+		]
 	],
 	"indentationRules": {
-		"increaseIndentPattern": "{{?(block|capture|else|elseif|for|foreach|foreachelse|function|if|literal|section|setfilter|strip|while)\\b.*}}?",
-		"decreaseIndentPattern": "{{?/(block|capture|for|foreach|function|if|literal|section|setfilter|strip|while)\\b}}?"
-	}
+		"increaseIndentPattern": "^\\s*{{?(block|capture|else|elseif|for|foreach|foreachelse|function|if|literal|section|setfilter|strip|while)\\b((?!}}?).)*$",
+		"decreaseIndentPattern": "^\\s*{{?/(block|capture|for|foreach|function|if|literal|section|setfilter|strip|while)\\b.*}}?$"
+	},
+	"onEnterRules": [
+		{
+			"beforeText": "^\\s*{{?(block|capture|else|elseif|for|foreach|foreachelse|function|if|literal|section|setfilter|strip|while)\\b((?!}}?).)*$",
+			"action": {
+				"indent": "indent"
+			}
+		},
+		{
+			"beforeText": "^\\s*{{?/(block|capture|for|foreach|function|if|literal|section|setfilter|strip|while)\\b.*}}?$",
+			"action": {
+				"indent": "none"
+			}
+		}
+	]
 }
