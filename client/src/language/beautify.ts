@@ -16,9 +16,15 @@ export class BeautifySmarty {
 
 	private tags: FormattingTags = {
 		start: new Set(["block", "capture", "for", "foreach", "function", "if", "literal", "section", "setfilter", "strip", "while"]),
-		middle: new Set(["else", "elseif", "foreachelse"]),
+		middle: new Set(["else", "elseif", "foreachelse", "sectionelse"]),
 		end: new Set(["block", "capture", "for", "foreach", "function", "if", "literal", "section", "setfilter", "strip", "while"])
 	};
+
+	private wrapTags: Set<string> = new Set(["component", "include", "include_scoped", "assign"]);
+	private logicTags: Set<string> = new Set(["if", "elseif", "while"]);
+	
+	// Store processed tags for restoration
+	private smartyTags: string[] = [];
 
 	public beautify(docText: String, options: FormattingOptions): string {
 		const embeddedRegExp: RegExp = /(<(?:script|style)[\s\S]*?>)([\s\S]*?)(<\/(?:script|style)>)/g;
@@ -34,81 +40,218 @@ export class BeautifySmarty {
 			return start + content.replace(smartyRegExp, "/* beautify ignore:start */$1/* beautify ignore:end */") + end;
 		});
 
+		// preprocess smarty tags to pseudo-HTML
+		let processed = this.preprocess(docText as string);
+
 		// format using js-beautify
 		const beautifyConfig = this.beautifyConfig(options);
-		let formatted = beautify(docText, beautifyConfig);
+		let beautified = beautify(processed, beautifyConfig);
 
-		// split into lines
+		// postprocess back to smarty
+		let postProcessed = this.postprocess(beautified);
+
+		// split into lines for final pass
 		const literalPattern: string = Object.values(this.literals).map(r => r.source).join("|");
 		const linkPattern: RegExp = new RegExp(`${literalPattern}|(?<linebreak>\r?\n)|(?<end>$)`, "gm");
 
-		let start: number;
+		let start: number = 0;
 		let lines: string[] = [];
-		let match: RegExpExecArray;
-		while (match = linkPattern.exec(formatted)) {
+		let match: any;
+		while (match = linkPattern.exec(postProcessed)) {
+			if (match.index === linkPattern.lastIndex) linkPattern.lastIndex++;
 			if (match.groups.linebreak !== undefined) {
-				lines.push(formatted.substring(start + match.groups.linebreak.length || 0, match.index));
-				start = match.index;
+				lines.push(postProcessed.substring(start, match.index));
+				start = match.index + match.groups.linebreak.length;
 			} else if (match.groups.end !== undefined) {
-				lines.push(formatted.substring(start, formatted.length).trimLeft());
+				lines.push(postProcessed.substring(start, postProcessed.length));
 				break;
 			}
 		}
 
 		const indent_char = beautifyConfig.indent_with_tabs ? "\t" : " ".repeat(beautifyConfig.indent_size);
-		const region = /{{?(\/?)(\w+).*?}}?/g;
+		
+		// Wrap long tags
+		lines = this.wrapLongTags(lines, indent_char);
 
-		const startedRegions = [];
-		let i = 0;
+		// Final pass to fix internal indentation and wrapping of tags
+		let finalLines: string[] = [];
+		let insideMultilineTag = false;
+		let lastTagIndent = "";
+		let insideHtmlTag = false;
+		let htmlTagIndent = "";
 
-		while (i < lines.length) {
-			let line = lines[i];
+		let indentStack: string[] = [];
+		for (let line of lines) {
+			let trimmed = line.trim();
+			let indentMatch = line.match(/^([ \t]*)/);
+			let currentIndent = indentMatch ? indentMatch[0] : "";
 
-			// detect smarty tags
-			let reapeat = startedRegions.length;
+			// 1. Handle HTML / Pseudo-HTML tag wrapping (closing > on new line)
+			if (!insideHtmlTag && trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.startsWith('<!--')) {
+				if (!trimmed.endsWith('>')) {
+					insideHtmlTag = true;
+					htmlTagIndent = currentIndent;
+				}
+			} else if (insideHtmlTag) {
+				if (trimmed === '>') {
+					insideHtmlTag = false;
+					line = htmlTagIndent + '>';
+				} else if (trimmed.endsWith('>')) {
+					// Check if the line ends with a closing tag (e.g. </button>)
+					// If so, we want to split at the > of the OPENING tag, which is before the closing tag.
+					const closingTagMatch = trimmed.match(/<\/[a-zA-Z0-9:-]+>\s*$/);
+					let splitIndex = -1;
 
-			let startMatch = [];
-			let middleMatch = [];
-			let endMatch = [];
+					if (closingTagMatch) {
+						// Find the start of the closing tag
+						const closeStart = line.lastIndexOf('</');
+						// Find the > BEFORE the closing tag
+						if (closeStart > 0) {
+							const prevTagClose = line.lastIndexOf('>', closeStart - 1);
+							if (prevTagClose !== -1) {
+								splitIndex = prevTagClose;
+							}
+						}
+					} else if (trimmed.endsWith('/>')) {
+						// Self-closing tag (e.g. <input ... />)
+						// Split BEFORE the /> so the /> goes on the new line
+						const lastSlash = line.lastIndexOf('/>');
+						if (lastSlash !== -1) {
+							splitIndex = lastSlash;
+						}
+					} else {
+						// Normal case: split at the last >
+						splitIndex = line.lastIndexOf('>');
+					}
 
-			let match: RegExpExecArray;
-			while (match = region.exec(line)) {
-				let [fullmatch, close, tag] = match;
-
-				if (!close && this.tags.start.has(tag)) {
-					startMatch.push(fullmatch, tag);
-				} else if (!close && this.tags.middle.has(tag)) {
-					middleMatch.push(fullmatch, tag);
-				} else if (close && this.tags.end.has(tag)) {
-					endMatch.push(fullmatch, tag);
+					if (splitIndex !== -1) {
+						insideHtmlTag = false;
+						let content = line.substring(0, splitIndex).trimEnd();
+						if (content.length > 0) {
+							finalLines.push(content);
+						}
+						
+						if (trimmed.endsWith('/>')) {
+							// For self-closing, push />
+							finalLines.push(htmlTagIndent + '/>');
+						} else {
+							// The closing > of the opening tag or normal tag
+							finalLines.push(htmlTagIndent + '>');
+						}
+						
+						// If there is content after the > (e.g. </button> or text), push it as well
+						let separatorLength = trimmed.endsWith('/>') ? 2 : 1;
+						
+						if (splitIndex < line.length - separatorLength) {
+							let after = line.substring(splitIndex + separatorLength).trim();
+							if (after.length > 0) {
+								// Check if 'after' contains a closing tag at the end (e.g. "{t(...)}</span>")
+								// We want to split this into:
+								//   {t(...)}
+								//   </span>
+								const closingTagMatch = after.match(/^(.*)(<\/[a-zA-Z0-9:-]+>)$/);
+								if (closingTagMatch) {
+									const content = closingTagMatch[1].trim();
+									const closingTag = closingTagMatch[2];
+									
+									// 1. Content (indented)
+									if (content.length > 0) {
+										// We should ideally indent this content +1 level relative to the TAG (htmlTagIndent)
+										// But check if it's already indented? No, 'after' is trimmed.
+										// So we add one level of indentation.
+										finalLines.push(htmlTagIndent + indent_char + content);
+									}
+									
+									// 2. Closing Tag (aligned with opening tag)
+									finalLines.push(htmlTagIndent + closingTag);
+								} else {
+									// Just push it as is (maybe just content, or just closing tag without content)
+									// If it is just a closing tag, align with htmlTagIndent
+									if (after.match(/^<\/[a-zA-Z0-9:-]+>$/)) {
+										finalLines.push(htmlTagIndent + after);
+									} else {
+										// It's content. Indent it.
+										finalLines.push(htmlTagIndent + indent_char + after);
+									}
+								}
+							}
+						}
+						continue; // Skip the default push(line) since we handled it
+					} else {
+						// Should not happen if endsWith('>') but safety check
+						insideHtmlTag = false;
+						let content = line.substring(0, line.lastIndexOf('>')).trimEnd();
+						finalLines.push(content);
+						line = htmlTagIndent + '>';
+						currentIndent = htmlTagIndent;
+					}
 				}
 			}
 
-			if (startMatch.length) {
-				startedRegions.push(startMatch[0]);
-			} else if (middleMatch.length) {
-				reapeat--;
-			} else if (endMatch.length) {
-				startedRegions.pop();
-				reapeat--;
+			// 2. Detect if this line CLOSES a structural block (starts with it)
+			const endTagMatch = trimmed.match(/^{{?\s*\/(\w+)/);
+			if (endTagMatch && this.tags.end.has(endTagMatch[1])) {
+				indentStack.pop();
 			}
 
-			// indent smarty block
-			if (startMatch[1] && (startMatch[1] == endMatch[1])) {
-				startedRegions.pop();
-			} else if ((startMatch.length + middleMatch.length + endMatch.length) > 2) {
-				let iter = 0;
-
-				const spaces = line.replace(/^([ \t]+).*/s, "$1");
-				const newLines = line.replace(region, (match: string) => (iter++ ? "\n" + spaces : "") + match).split("\n");
-				lines.splice(i, 1, ...newLines);
+			// 3. Apply relative indentation from the stack
+			if (indentStack.length > 0) {
+				const baseIndent = indentStack[indentStack.length - 1];
+				const minIndent = baseIndent + indent_char;
+				if (!currentIndent.startsWith(minIndent)) {
+					if (currentIndent.startsWith(baseIndent)) {
+						currentIndent = baseIndent + indent_char + currentIndent.substring(baseIndent.length);
+					} else {
+						currentIndent = minIndent + currentIndent.trim();
+					}
+					line = currentIndent + trimmed;
+				}
 			}
 
-			lines[i] = indent_char.repeat(Math.max(0, reapeat)) + lines[i];
-			i += 1;
+			// 4. Out-dent middle tags (else, elseif, etc.)
+			if (this.isMiddleTag(trimmed)) {
+				if (currentIndent.startsWith(indent_char)) {
+					currentIndent = currentIndent.substring(indent_char.length);
+					line = currentIndent + trimmed;
+				}
+			}
+
+			// 5. Handle structural tag transition and stack PUSH
+			if (!insideMultilineTag && (trimmed.startsWith('{') || trimmed.startsWith('{{')) && !trimmed.includes('}') && !trimmed.includes('}}')) {
+				insideMultilineTag = true;
+				lastTagIndent = currentIndent;
+				
+				const startTagMatch = trimmed.match(/^{{?\s*(\w+)/);
+				if (startTagMatch && this.tags.start.has(startTagMatch[1])) {
+					indentStack.push(currentIndent);
+				}
+				finalLines.push(line);
+			} else if (insideMultilineTag && (trimmed === '}' || trimmed === '}}' || (trimmed.endsWith('}') && !trimmed.includes('{')) || (trimmed.startsWith('{/') || trimmed.startsWith('{{/')))) {
+				insideMultilineTag = false;
+				finalLines.push(lastTagIndent + trimmed);
+			} else {
+				// Special case: check if we just pushed a structural START tag that was NOT multiline
+				if (!insideMultilineTag && (trimmed.startsWith('{') || trimmed.startsWith('{{'))) {
+					const startTagMatch = trimmed.match(/^{{?\s*(\w+)/);
+					if (startTagMatch && this.tags.start.has(startTagMatch[1])) {
+						// Only push to stack if it's NOT a self-closing/inline tag on one line
+						if (!trimmed.endsWith('}') && !trimmed.endsWith('}}')) {
+							// Already handled by multiline logic above
+						} else {
+							// Check if it's a structural tag like {if ...} on one line
+							// We might still want to indent subsequent lines? 
+							// Actually, if it's on one line, js-beautify usually handles the content.
+							// But structural blocks usually span lines.
+							indentStack.push(currentIndent);
+						}
+					}
+				}
+				finalLines.push(line);
+			}
 		}
 
-		formatted = lines.join("\n").replace(/^[ \t]+$/gm, "");
+
+		let formatted = finalLines.join("\n").replace(/^[ \t]+$/gm, "");
 
 		// unescape smarty literals in script and style
 		if (isEscaped) {
@@ -136,10 +279,305 @@ export class BeautifySmarty {
 				js: { end_with_newline: false },
 				css: { end_with_newline: false },
 			},
-			templating: ["smarty"]
+			templating: ["none"]
 		};
 
 		return config;
 	}
 
+	private wrapLongTags(lines: string[], indent_char: string): string[] {
+		const wrapLineLength = CONFIG.wrapLineLength || 80;
+		const newLines: string[] = [];
+
+		for (let line of lines) {
+			const indentMatch = line.match(/^([ \t]*)/);
+			const indent = indentMatch ? indentMatch[0] : "";
+			const trimmed = line.trim();
+			const tagMatch = trimmed.match(/^({+)\s*(\w+)\s+(.*)(}+)$/);
+			if (tagMatch) {
+				const [_, leftBraces, tagName, content, rightBraces] = tagMatch;
+				if (this.wrapTags.has(tagName)) {
+					const attrs = this.parseAttributes(content);
+                    console.log(`Attrs found: ${attrs.length}`);
+					if (line.length > wrapLineLength || attrs.length > 3) {
+						newLines.push(`${indent}${leftBraces}${tagName}`);
+						for (const attr of attrs) {
+							newLines.push(`${indent}${indent_char}${attr}`);
+						}
+						newLines.push(`${indent}${rightBraces}`);
+						continue;
+					}
+				} else if (this.logicTags.has(tagName) && line.length > wrapLineLength) {
+					const parts = this.splitLogicExpression(content);
+					if (parts.length > 1) {
+						newLines.push(`${indent}${leftBraces}${tagName} ${parts[0]}`);
+						for (let j = 1; j < parts.length; j++) {
+							newLines.push(`${indent}${indent_char}${parts[j]}`);
+						}
+						newLines.push(`${indent}${rightBraces}`);
+						continue;
+					}
+				}
+			}
+			newLines.push(line);
+		}
+		return newLines;
+	}
+
+	private splitLogicExpression(content: string): string[] {
+		const parts: string[] = [];
+		let currentPart = "";
+		let i = 0;
+		let bracketDepth = 0;
+		let parenDepth = 0;
+		let quote = null;
+
+		while (i < content.length) {
+			const char = content[i];
+			if (quote) {
+				if (char === quote && content[i - 1] !== '\\') quote = null;
+				currentPart += char;
+			} else {
+				if (char === '"' || char === "'") quote = char;
+				else if (char === '[') bracketDepth++;
+				else if (char === ']') bracketDepth--;
+				else if (char === '(') parenDepth++;
+				else if (char === ')') parenDepth--;
+				else if (bracketDepth === 0 && parenDepth === 0) {
+					const remaining = content.substring(i);
+					const opMatch = remaining.match(/^\s*(&&|\|\||and|or)\s+/);
+					if (opMatch) {
+						if (currentPart.trim()) parts.push(currentPart.trim());
+						currentPart = opMatch[1] + " ";
+						i += opMatch[0].length;
+						continue;
+					}
+				}
+				currentPart += char;
+			}
+			i++;
+		}
+		if (currentPart.trim()) parts.push(currentPart.trim());
+		return parts;
+	}
+
+	private isMiddleTag(trimmed: string): boolean {
+		const m = trimmed.match(/^{{?\s*(\w+)/);
+		return m !== null && this.tags.middle.has(m[1]);
+	}
+
+	private parseAttributes(content: string): string[] {
+		const attrs: string[] = [];
+		let i = 0;
+		while (i < content.length) {
+			// skip whitespace and commas
+			while (i < content.length && /[\s,]/.test(content[i])) i++;
+			if (i >= content.length) break;
+
+			let start = i;
+			// match key (any non-whitespace, non-comma, non-equals, non-brace)
+			while (i < content.length && /[^\s,={}]/.test(content[i])) i++;
+			let key = content.substring(start, i);
+
+			// skip whitespace
+			while (i < content.length && /\s/.test(content[i])) i++;
+			
+			if (i >= content.length || content[i] !== '=') {
+				if (key) attrs.push(key);
+				// If we didn't match a key and weren't at an '=', we must advance to avoid infinite loop
+				if (start === i && i < content.length) i++;
+				continue;
+			}
+			i++; // skip '='
+
+			// skip whitespace
+			while (i < content.length && /\s/.test(content[i])) i++;
+			
+			// match value (can be quoted string, array [], or just words)
+			let valueStart = i;
+			let bracketDepth = 0;
+			let parenDepth = 0;
+            let braceDepth = 0; // Smarty { } depth
+			let quote = null;
+			while (i < content.length) {
+				const char = content[i];
+				if (quote) {
+                    if (char === '{') braceDepth++; // Track braces even inside quotes for Smarty safety
+                    else if (char === '}') {
+                        if (braceDepth > 0) braceDepth--;
+                    }
+                    
+                    // Only close quote if we are not inside a Smarty block { ... } and not escaped
+					if (char === quote && content[i-1] !== '\\' && braceDepth === 0) quote = null;
+				} else {
+					if (char === '"' || char === "'") quote = char;
+					else if (char === '[') bracketDepth++;
+					else if (char === ']') bracketDepth--;
+					else if (char === '(') parenDepth++;
+					else if (char === ')') parenDepth--;
+                    else if (char === '{') braceDepth++;
+                    else if (char === '}') { if (braceDepth > 0) braceDepth--; }
+					else if (/[\s,]/.test(char) && bracketDepth === 0 && parenDepth === 0 && braceDepth === 0) break;
+					// Note: we don't break on '}' if braceDepth is 0 because usually '}' ends the tag, handled by caller?
+                    // Actually caller passes 'content' which is inside the tag { tag content }.
+                    // So '}' should not be present in content usually, or only as part of logic.
+				}
+				i++;
+			}
+			let value = content.substring(valueStart, i);
+			attrs.push(`${key}=${value}`);
+		}
+		return attrs;
+	}
+
+	private preprocess(text: string): string {
+		this.smartyTags = [];
+		let result = '';
+		let i = 0;
+		let pos = 0;
+		
+		// Phase 1: Tokenize ALL smarty tags to unique IDs with proper brace matching
+		while (pos < text.length) {
+			const char = text[pos];
+			
+			// Check for start of Smarty tag
+			if (char === '{') {
+				const braceStart = pos;
+				let braceCount = 0;
+				let inQuote = null;
+				let tagEnd = -1;
+				
+				// Count opening braces
+				while (pos < text.length && text[pos] === '{') {
+					braceCount++;
+					pos++;
+				}
+				
+				// Check if this looks like a Smarty tag
+				const afterBraces = text.substring(pos).match(/^\/?\w+/);
+				if (!afterBraces) {
+					// Not a Smarty tag, just output the braces
+					result += text.substring(braceStart, pos);
+					continue;
+				}
+				
+				// Find matching closing braces
+				let depth = braceCount;
+				while (pos < text.length && depth > 0) {
+					const c = text[pos];
+					
+					if (inQuote) {
+						if (c === inQuote && text[pos - 1] !== '\\') {
+							inQuote = null;
+						}
+					} else {
+						if (c === '"' || c === "'") {
+							inQuote = c;
+						} else if (c === '{') {
+							depth++;
+						} else if (c === '}') {
+							depth--;
+							if (depth === 0) {
+								// Count consecutive closing braces
+								let closeBraceCount = 1;
+								while (pos + closeBraceCount < text.length && text[pos + closeBraceCount] === '}') {
+									closeBraceCount++;
+								}
+								tagEnd = pos + closeBraceCount;
+								break;
+							}
+						}
+					}
+					pos++;
+				}
+				
+				if (tagEnd > 0) {
+					const match = text.substring(braceStart, tagEnd);
+					const id = `___VSC_SMARTY_ID_${i}___`;
+					this.smartyTags.push(match);
+					i++;
+					result += id;
+					pos = tagEnd;
+				} else {
+					// Couldn't find closing braces, treat as literal
+					result += text.substring(braceStart, pos);
+				}
+			} else {
+				result += char;
+				pos++;
+			}
+		}
+		
+		const tokenizedText = result;
+
+		// Phase 2: Identify HTML tag regions in the tokenized text
+		const htmlTagRegions: [number, number][] = [];
+		const htmlTagRegex = /<[^>]*?>/g;
+		let htmlMatch;
+		while ((htmlMatch = htmlTagRegex.exec(tokenizedText)) !== null) {
+			htmlTagRegions.push([htmlMatch.index, htmlMatch.index + htmlMatch[0].length]);
+		}
+
+		// Phase 3 & 4: Replace IDs with appropriate placeholders based on context
+		return tokenizedText.replace(/___VSC_SMARTY_ID_(\d+)___/g, (match, idStr, offset) => {
+			const index = parseInt(idStr);
+			const originalTag = this.smartyTags[index];
+			const isInsideHtml = htmlTagRegions.some(([start, end]) => offset >= start && offset < end);
+
+			if (isInsideHtml) {
+				return `___VSC_SMARTY_TOKEN_INDEX_${index}___`;
+			}
+
+			const tagMatch = originalTag.match(/^({+)(\/?)(\w+)([\s\S]*?)(}+)$/);
+			if (tagMatch) {
+				const [_, open, close, tag, content, end] = tagMatch;
+				if (this.tags.start.has(tag) || this.tags.end.has(tag)) {
+					if (close) {
+						return `</vsc-smarty-${tag}>`;
+					} else {
+						return `<vsc-smarty-${tag} data-smarty-open="${encodeURIComponent(open)}" data-smarty-close="${encodeURIComponent(end)}" data-smarty-content="${encodeURIComponent(content)}">`;
+					}
+				}
+			}
+			return `___VSC_SMARTY_TOKEN_INDEX_${index}___`;
+		});
+	}
+
+	private postprocess(text: string): string {
+		// Phase 5: Clean tokens from beautifier-introduced whitespace
+		// Note: We don't un-wrap vsc-smarty pseudo-tags anymore to respect 
+		// the beautifier's wrapping decisions (force-expand-multiline).
+		text = text.replace(/(___VSC_SMARTY_TOKEN_[\s\S]*?___)/g, (match) => {
+			return match.replace(/\r?\n\s*/g, '');
+		});
+
+		const braceStack: { open: string, close: string }[] = [];
+
+		return text.replace(/___VSC_SMARTY_TOKEN_INDEX_(\d+)___/g, (match, indexStr) => {
+			const index = parseInt(indexStr);
+			let original = this.smartyTags[index] || match;
+            
+            // Flatten wrapTags so they can be re-wrapped correctly by wrapLongTags
+            const tagNameMatch = original.match(/^{{?\s*(\w+)/);
+            if (tagNameMatch && (this.wrapTags.has(tagNameMatch[1]) || this.logicTags.has(tagNameMatch[1]))) {
+                 if (original.includes('\n')) {
+                     original = original.replace(/\s+/g, ' ');
+                 }
+            }
+            return original;
+		}).replace(/<vsc-smarty-(?!tag)([^>\s]*)([^>]*)>/g, (match, tag, attrs) => {
+			const openMatch = attrs.match(/data-smarty-open="([^"]*)"/);
+			const closeMatch = attrs.match(/data-smarty-close="([^"]*)"/);
+			const contentMatch = attrs.match(/data-smarty-content="([^"]*)"/);
+			const open = openMatch ? decodeURIComponent(openMatch[1]) : "{";
+			const close = closeMatch ? decodeURIComponent(closeMatch[1]) : "}";
+			const content = contentMatch ? decodeURIComponent(contentMatch[1]) : "";
+			
+			braceStack.push({ open, close });
+			return `${open}${tag}${content}${close}`;
+		}).replace(/<\/vsc-smarty-(?!tag)([^> ]*)>/g, (match, tag) => {
+			const braces = braceStack.pop() || { open: "{", close: "}" };
+			return `${braces.open}/${tag}${braces.close}`;
+		});
+	}
 }
