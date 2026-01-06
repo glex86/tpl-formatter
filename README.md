@@ -1,8 +1,8 @@
-# TPL Formatter for Smarty Template Engine
+# TPL Formatter
 
-![TPL Formatter for Smarty Template Engine Logo](images/logo.png)
+![TPL Formatter Logo](images/logo.png)
 
-TPL Formatter for Smarty Template Engine is a Visual Studio Code extension focused on **formatting and readability** for Smarty (`.tpl`) template files.
+TPL Formatter is a Visual Studio Code extension focused on **formatting and readability** for Smarty (`.tpl`) template files.
 
 This project is a **community-maintained implementation** created to provide consistent formatting behavior and modern VS Code compatibility.
 
@@ -10,7 +10,7 @@ This project is a **community-maintained implementation** created to provide con
 
 ## 🎯 Scope & Purpose
 
-TPL Formatter for Smarty Template Engine is intentionally focused on a clear and limited scope:
+TPL Formatter is intentionally focused on a clear and limited scope:
 
 - Reliable document formatting
 - Predictable indentation

@@ -1,13 +1,13 @@
 {
 	"name": "tpl-formatter",
-	"displayName": "TPL Formatter for Smarty Template Engine",
-	"description": "TPL Formatter for Smarty Template Engine with formatting, folding, snippets, syntax highlighting and more",
+	"displayName": "TPL Formatter",
+	"description": "TPL Formatter with formatting, folding, snippets, syntax highlighting and more",
 	"author": {
 		"name": "Oktay Aydoğan",
 		"email": "aydoganooktay@gmail.com"
 	},
 	"license": "MIT",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"publisher": "OktayAydoan",
 	"icon": "images/logo.png",
 	"galleryBanner": {
@@ -90,7 +90,7 @@
 		},
 		"configuration": {
 			"type": "object",
-			"title": "TPL Formatter for Smarty Template Engine",
+			"title": "TPL Formatter",
 			"properties": {
 				"smarty.highlight": {
 					"type": "boolean",

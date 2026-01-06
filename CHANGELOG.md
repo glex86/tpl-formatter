@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the **TPL Formatter for Smarty Template Engine** extension are documented in this file.
+All notable changes to the **TPL Formatter** extension are documented in this file.
 
 This project is a **new, independent extension** with its own versioning history.
 
@@ -10,7 +10,7 @@ This project is a **new, independent extension** with its own versioning history
 
 ### Initial Release
 
-This is the first public release of **TPL Formatter for Smarty Template Engine** as a standalone and community-maintained extension.
+This is the first public release of **TPL Formatter** as a standalone and community-maintained extension.
 
 ### Added
 
