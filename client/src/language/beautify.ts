@@ -77,8 +77,7 @@ export class BeautifySmarty {
 		let finalLines: string[] = [];
 		let insideMultilineTag = false;
 		let lastTagIndent = "";
-		let insideHtmlTag = false;
-		let htmlTagIndent = "";
+
 
 		let indentStack: string[] = [];
 		for (let line of lines) {
@@ -86,107 +85,7 @@ export class BeautifySmarty {
 			let indentMatch = line.match(/^([ \t]*)/);
 			let currentIndent = indentMatch ? indentMatch[0] : "";
 
-			// 1. Handle HTML / Pseudo-HTML tag wrapping (closing > on new line)
-			if (!insideHtmlTag && trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.startsWith('<!--')) {
-				if (!trimmed.endsWith('>')) {
-					insideHtmlTag = true;
-					htmlTagIndent = currentIndent;
-				}
-			} else if (insideHtmlTag) {
-				if (trimmed === '>') {
-					insideHtmlTag = false;
-					line = htmlTagIndent + '>';
-				} else if (trimmed.endsWith('>')) {
-					// Check if the line ends with a closing tag (e.g. </button>)
-					// If so, we want to split at the > of the OPENING tag, which is before the closing tag.
-					const closingTagMatch = trimmed.match(/<\/[a-zA-Z0-9:-]+>\s*$/);
-					let splitIndex = -1;
 
-					if (closingTagMatch) {
-						// Find the start of the closing tag
-						const closeStart = line.lastIndexOf('</');
-						// Find the > BEFORE the closing tag
-						if (closeStart > 0) {
-							const prevTagClose = line.lastIndexOf('>', closeStart - 1);
-							if (prevTagClose !== -1) {
-								splitIndex = prevTagClose;
-							}
-						}
-					} else if (trimmed.endsWith('/>')) {
-						// Self-closing tag (e.g. <input ... />)
-						// Split BEFORE the /> so the /> goes on the new line
-						const lastSlash = line.lastIndexOf('/>');
-						if (lastSlash !== -1) {
-							splitIndex = lastSlash;
-						}
-					} else {
-						// Normal case: split at the last >
-						splitIndex = line.lastIndexOf('>');
-					}
-
-					if (splitIndex !== -1) {
-						insideHtmlTag = false;
-						let content = line.substring(0, splitIndex).trimEnd();
-						if (content.length > 0) {
-							finalLines.push(content);
-						}
-						
-						if (trimmed.endsWith('/>')) {
-							// For self-closing, push />
-							finalLines.push(htmlTagIndent + '/>');
-						} else {
-							// The closing > of the opening tag or normal tag
-							finalLines.push(htmlTagIndent + '>');
-						}
-						
-						// If there is content after the > (e.g. </button> or text), push it as well
-						let separatorLength = trimmed.endsWith('/>') ? 2 : 1;
-						
-						if (splitIndex < line.length - separatorLength) {
-							let after = line.substring(splitIndex + separatorLength).trim();
-							if (after.length > 0) {
-								// Check if 'after' contains a closing tag at the end (e.g. "{t(...)}</span>")
-								// We want to split this into:
-								//   {t(...)}
-								//   </span>
-								const closingTagMatch = after.match(/^(.*)(<\/[a-zA-Z0-9:-]+>)$/);
-								if (closingTagMatch) {
-									const content = closingTagMatch[1].trim();
-									const closingTag = closingTagMatch[2];
-									
-									// 1. Content (indented)
-									if (content.length > 0) {
-										// We should ideally indent this content +1 level relative to the TAG (htmlTagIndent)
-										// But check if it's already indented? No, 'after' is trimmed.
-										// So we add one level of indentation.
-										finalLines.push(htmlTagIndent + indent_char + content);
-									}
-									
-									// 2. Closing Tag (aligned with opening tag)
-									finalLines.push(htmlTagIndent + closingTag);
-								} else {
-									// Just push it as is (maybe just content, or just closing tag without content)
-									// If it is just a closing tag, align with htmlTagIndent
-									if (after.match(/^<\/[a-zA-Z0-9:-]+>$/)) {
-										finalLines.push(htmlTagIndent + after);
-									} else {
-										// It's content. Indent it.
-										finalLines.push(htmlTagIndent + indent_char + after);
-									}
-								}
-							}
-						}
-						continue; // Skip the default push(line) since we handled it
-					} else {
-						// Should not happen if endsWith('>') but safety check
-						insideHtmlTag = false;
-						let content = line.substring(0, line.lastIndexOf('>')).trimEnd();
-						finalLines.push(content);
-						line = htmlTagIndent + '>';
-						currentIndent = htmlTagIndent;
-					}
-				}
-			}
 
 			// 2. Detect if this line CLOSES a structural block (starts with it)
 			const endTagMatch = trimmed.match(/^{{?\s*\/(\w+)/);
