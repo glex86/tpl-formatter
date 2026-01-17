@@ -25,6 +25,7 @@ export class BeautifySmarty {
 	
 	// Store processed tags for restoration
 	private smartyTags: string[] = [];
+    private currentConfig: any = {};
 
 	public beautify(docText: String, options: FormattingOptions): string {
 		// preprocess smarty tags to pseudo-HTML
@@ -32,6 +33,7 @@ export class BeautifySmarty {
 
 		// format using js-beautify
 		const beautifyConfig = this.beautifyConfig(options);
+        this.currentConfig = beautifyConfig;
 		let beautified = beautify(processed, beautifyConfig);
 
 		// postprocess back to smarty
@@ -603,11 +605,35 @@ export class BeautifySmarty {
 	}
 
 	private postprocess(text: string): string {
-        // Restore transparent literal comments back to tags
-        // Handle both HTML comments <!-- ... --> and JS/CSS comments /* ... */
-        // We match liberally to catch any reformatting js-beautify might have done (spaces, newlines)
-        text = text.replace(/(?:<!--|\/\*)\s*___VSC_SMARTY_LITERAL_START___\s*(?:-->|\*\/)/g, '{literal}');
-        text = text.replace(/(?:<!--|\/\*)\s*___VSC_SMARTY_LITERAL_END___\s*(?:-->|\*\/)/g, '{/literal}');
+        // Determine indent char from config
+        const indent_size = this.currentConfig.indent_size || 4;
+        const indent_char = this.currentConfig.indent_with_tabs ? "\t" : " ".repeat(indent_size);
+
+        // Restore transparent literal comments back to tags with EXTRA INDENTATION
+        // Capture block: START comment ... content ... END comment
+        // Regex allows for HTML (<!--) or JS (/*) style comments
+        const literalBlockRegex = /(?:<!--|\/\*)\s*___VSC_SMARTY_LITERAL_START___\s*(?:-->|\*\/)([\s\S]*?)(?:<!--|\/\*)\s*___VSC_SMARTY_LITERAL_END___\s*(?:-->|\*\/)/g;
+        
+        text = text.replace(literalBlockRegex, (match, innerContent) => {
+            if (!innerContent) return "{literal}{/literal}";
+            
+            // Add one level of indentation to the inner content
+            // innerContent contains lines largely indented by js-beautify.
+            // We just add indent_char to the start of each valid line.
+            
+            const lines = innerContent.split('\n');
+            const indentedLines = lines.map(line => {
+                // If the line is empty or just whitespace, don't necessarily indent it? 
+                // Usually editors handle empty lines by removing whitespace, but adding indent is safer for structure.
+                if (!line.trim()) return line; 
+                return indent_char + line;
+            });
+            
+            let newContent = indentedLines.join('\n');
+            
+            // Return reconstruction
+            return `{literal}${newContent}{/literal}`;
+        });
 
 		// Phase 5: Clean tokens from beautifier-introduced whitespace
 		// Note: We don't un-wrap vsc-smarty pseudo-tags anymore to respect 
