@@ -85,6 +85,12 @@ Optional highlight decoration can be configured:
 
 ## 🆕 Recent Changes
 
+### Version 0.2.1 (2026-01-18)
+
+- **Critical Fix:** Advanced `{literal}` handling strategy. HTML attributes using `literal` are now fully protected, and scripts inside `literal` are correctly formatted.
+- **New Feature:** Smarty arrays inside tags (e.g. `val=['a','b']`) are now auto-formatted across multiple lines.
+- Fixed indentation issues for multiline attributes.
+
 ### Version 0.1.0 (2025-12-29)
 
 - Improved formatting stability for nested Smarty tags
